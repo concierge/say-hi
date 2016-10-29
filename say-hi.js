@@ -10,9 +10,12 @@ let command = 'say-hi',
 
 exports.load = function () {
     let callback = () => {
-        let apis = exports.platform.getIntegrationApis();
-        if (Object.keys(apis).length > 0) {
+        let apis = exports.platform.getIntegrationApis(),
+            keys = Object.keys(apis);
+
+        if (keys.length > 0 && apis[keys[0]] !== null) {
             greet(apis);
+
         } else {
             setTimeout(callback, 200);
         }
@@ -23,7 +26,7 @@ exports.load = function () {
 exports.match = function(event, commandPrefix){
     //Check if it matches one of our predefined commands
     for (var i = 0; i < validCommands.length; ++i) {
-        if (event.body.startsWith(validCommands[i])) {
+        if (event.body.startsWith(commandPrefix + validCommands[i])) {
             return true;
         }
     }
@@ -39,9 +42,9 @@ let greet = function(apis) {
 
         for (var i = 0; i < threads.length; ++i){
             let thread_id = threads[i],
-                threadConfig = config[thread],
-                greetings = threadConfig.greetings || ['--Hello World--'],
-                greeting = greetings[Math.floor(Math.random() * quotes.length)];
+                threadConfig = config[thread_id],
+                greetings = threadConfig.greetings || ['Hello World'],
+                greeting = greetings[Math.floor(Math.random() * greetings.length)];
 
             if (!threadConfig.enabled) {
                 continue;
@@ -56,28 +59,28 @@ let greet = function(apis) {
         }
     },
 
-    ensureConfigExists = function(thread_id) {
+    ensureConfigExists = function(thread_id, api) {
+        if (api) {            
+            api.sendMessage("I should've done something...", thread_id);
+        }
+        if (!exports.config[thread_id]) {
+            exports.config[thread_id] = {};
+        }
         exports.config[thread_id] = exports.config[thread_id] || {};
     },
 
     enable = function(api, event) {     
-        ensureConfigExists(event.thread_id);
-
         exports.config[event.thread_id].enabled = true;
-        api.sendMessage('Greetings Disabled!', event.thread_id);
+        api.sendMessage('Greetings Enabled!', event.thread_id);
     },
 
     disable = function(api, event){
-        ensureConfigExists(event.thread_id);
-
         exports.config[event.thread_id].enabled = false;
         api.sendMessage('Greetings Disabled!', event.thread_id);
     },
 
     set_greetings = function(api, event){
         let greetings = event.body.substring(setCommand.length).split(',');
-
-        ensureConfigExists(event.thread_id);
 
         exports.config[event.thread_id].greetings = greetings;
         api.sendMessage('Greetings Set!', event.thread_id);
@@ -88,13 +91,17 @@ let greet = function(apis) {
     };
 
 exports.run = function(api, event){
-    if (event.body.startsWith(enableCommand)) {
+    let body = event.body;
+
+    ensureConfigExists(event.thread_id);
+
+    if (body.includes(enableCommand)) {
         enable(api, event);
     }
-    else if (event.body.startsWith(disableCommand)) {
+    else if (event.body.includes(disableCommand)) {
         disable(api, event);
     }
-    else if (event.body.startsWith(setCommand)) {
+    else if (event.body.includes(setCommand)) {
         set_greetings(api, event);
     }
     else {
