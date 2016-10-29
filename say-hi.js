@@ -59,10 +59,7 @@ let greet = function(apis) {
         }
     },
 
-    ensureConfigExists = function(thread_id, api) {
-        if (api) {            
-            api.sendMessage("I should've done something...", thread_id);
-        }
+    ensureConfigExists = function(thread_id) {
         if (!exports.config[thread_id]) {
             exports.config[thread_id] = {};
         }
