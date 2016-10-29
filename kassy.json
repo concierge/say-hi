@@ -1,0 +1,13 @@
+{
+  "name": "say-hi",
+  "version": 1.0,
+  "startup": "say-hi.js",
+  "help": [
+    [ 
+        "{{commandPrefix}}say-hi enable", "Enables saying hi when Concierge starts.",
+        "{{commandPrefix}}say-hi disable", "Disables saying hi when Concierge starts.",
+        "{{commandPrefix}}say-hi set greeting1,[OPTIONAL]greeting2,...,[OPTIONAL]greatingN"
+    ]
+  ]
+
+}
