@@ -1,111 +1,81 @@
-let command = 'say-hi',
-        enableCommand = command + ' enable',
-        disableCommand = command + ' disable',
-        setCommand = command + ' set ',
-        validCommands = [
-            enableCommand,
-            disableCommand,
-            setCommand
-        ];
+const parser = require('concierge/arguments');
 
-exports.load = function () {
-    let search = Object.keys(exports.config);
-
-    let callback = () => {
-        let apis = exports.platform.getIntegrationApis(),
-            keys = Object.keys(apis);
-
-        for (let i = 0; i < search.length; i++) {
-            let integ = search[i];
-            if (apis[integ] && apis[integ] !== null) {
-                greet(integ, apis[integ])
-                search.splice(i, 1);
-                i--;
-            }
-        }
-
-        if (search.length !== 0) {
-            setTimeout(callback, 200);
-        }
+const greet = (api, config) => {
+    for (let thread_id of Object.keys(config)) {
+        const thread = config[thread_id];
+        if (!thread.enabled)
+            continue;
+        const greeting = api.random(thread.greetings || ['Hello World']);
+        api.sendMessage(greeting, thread_id);
     }
-    callback();
 };
 
-exports.match = function(event, commandPrefix){
-    //Check if it matches one of our predefined commands
-    for (var i = 0; i < validCommands.length; ++i) {
-        if (event.body.startsWith(commandPrefix + validCommands[i])) {
-            return true;
-        }
-    }
-
-    //If it didn't, we can't handle it
-    return false;
+const greetEvent = startObj => {
+    const integ = startObj.integration;
+    if (!startObj.success || !exports.config[integ.__descriptor.name])
+        return;
+    /* Callback in a short time, such that this is async and so that races can be avoided. If an
+     * integration is stopped within 1sec of it starting, then someone has a bigger problem than
+     * this module throwing an exception... */
+    setTimeout(greet.bind(this, integ.getApi(), exports.config[integ.__descriptor.name]), 1000);
 };
 
-let greet = function(integ, api) {
-        let config = exports.config[integ],
-            threads = Object.keys(config);
+exports.load = platform => {
+    platform.modulesLoader.on('start', greetEvent);
+};
 
-        for (var i = 0; i < threads.length; ++i){
-            let thread_id = threads[i],
-                threadConfig = config[thread_id],
-                greetings = threadConfig.greetings || ['Hello World'],
-                greeting = api.random(greetings);
+exports.unload = platform => {
+    platform.modulesLoader.removeListener('start', greetEvent);
+};
 
-            if (!threadConfig.enabled) {
-                continue;
-            }
-            api.sendMessage(greeting, thread_id);
-        }
-    },
+const ensureConfigExists = (event_source, thread_id) => {
+    if (!exports.config[event_source]) {
+        exports.config[event_source] = {};
+    }
 
-    ensureConfigExists = function(event_source, thread_id) {
-        if (!exports.config[event_source]) {
-            exports.config[event_source] = {};
-        }
+    if (!exports.config[event_source][thread_id]) {
+        exports.config[event_source][thread_id] = {};
+    }
+};
 
-        if (!exports.config[event_source][thread_id]) {
-            exports.config[event_source][thread_id] = {};
-        }
-    },
-
-    enable = function(api, event) {
-        exports.config[event.event_source][event.thread_id].enabled = true;
-        api.sendMessage('Greetings Enabled!', event.thread_id);
-    },
-
-    disable = function(api, event){
-        exports.config[event.event_source][event.thread_id].enabled = false;
-        api.sendMessage('Greetings Disabled!', event.thread_id);
-    },
-
-    set_greetings = function(api, event){
-        let greetings = event.body.substring(setCommand.length).split(',');
-
-        exports.config[event.event_source][event.thread_id].greetings = greetings;
-        api.sendMessage('Greetings Set!', event.thread_id);
-    },
-
-    fail = function(api, event){
-        api.sendMessage('That didn\'t look right....', event.thread_id);
-    };
-
-exports.run = function(api, event){
-    let body = event.body;
-
+exports.run = (api, event) => {
     ensureConfigExists(event.event_source, event.thread_id);
+    try {
+        const args = parser.parseArguments(event.arguments.slice(1), [
+            {
+                long: 'enable',
+                short: 'e',
+                run: () => {
+                    exports.config[event.event_source][event.thread_id].enabled = true;
+                    api.sendMessage('Greetings Enabled!', event.thread_id);
+                }
+            },
+            {
+                long: 'disable',
+                short: 'd',
+                run: () => {
+                    exports.config[event.event_source][event.thread_id].enabled = false;
+                    api.sendMessage('Greetings Disabled!', event.thread_id);
+                }
+            },
+            {
+                long: 'set',
+                short: 's',
+                expects: ['GREETINGS'],
+                run: (out, vals) => {
+                    const greetings = vals[0].split(',');
+                    exports.config[event.event_source][event.thread_id].greetings = greetings;
+                    api.sendMessage('Greetings Set!', event.thread_id);
+                }
+            }
+        ]);
 
-    if (body.includes(enableCommand)) {
-        enable(api, event);
+        if (args.unassociated.length > 0 || Object.keys(args.parsed).length === 0) {
+            throw new Error('Invalid arguments or no arguments.');
+        }
     }
-    else if (event.body.includes(disableCommand)) {
-        disable(api, event);
+    catch (e) {
+        api.sendMessage("That didn't look right....", event.thread_id);
+        LOG.debug(e.message);
     }
-    else if (event.body.includes(setCommand)) {
-        set_greetings(api, event);
-    }
-    else {
-        fail(api, event);
-    }
-}
+};

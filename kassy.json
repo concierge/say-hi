@@ -1,19 +1,11 @@
 {
-  "name": "say-hi",
-  "version": 1.0,
-  "startup": "say-hi.js",
-  "help": [
-    [
-      "{{commandPrefix}}say-hi enable",
-      "Enables saying hi when Concierge starts."
+    "name": "say-hi",
+    "version": 2.0,
+    "startup": "say-hi.js",
+    "help": [
+        ["{{commandPrefix}}say-hi enable", "Enables saying hi when Concierge starts."],
+        ["{{commandPrefix}}say-hi disable", "Disables saying hi when Concierge starts."],
+        ["{{commandPrefix}}say-hi set greeting1,[OPTIONAL]greeting2,...,[OPTIONAL]greatingN", "Sets the list of greetings concierge will use for this thread. It splits on commas, so if your greeting has a comma, you're going to have a bad time."]
     ],
-    [
-      "{{commandPrefix}}say-hi disable",
-      "Disables saying hi when Concierge starts."
-    ],
-    [
-      "{{commandPrefix}}say-hi set greeting1,[OPTIONAL]greeting2,...,[OPTIONAL]greatingN",
-      "Sets the list of greetings concierge will use for this thread. It splits on commas, so if your greeting has a comma, you're going to have a bad time."
-    ]
-  ]
+    "command": "say-hi"
 }
